@@ -1,0 +1,3 @@
+[submodule "thirdparty/dcc042-robotica-movel"]
+	path = thirdparty/dcc042-robotica-movel
+	url = https://github.com/verlab/dcc042-robotica-movel.git

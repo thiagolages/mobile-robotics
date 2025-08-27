@@ -1,0 +1,72 @@
+networks:
+  robotics-network:
+    driver: bridge
+
+
+services:
+  robotics:
+    image: thiagolages/template-robotics:latest
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+      args:
+        COPPELIA_FILENAME: "CoppeliaSim_Edu_V4_10_0_rev0_Ubuntu22_04.tar.xz"
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw   # GUI sharing
+      - ./src:/home/thiago/workspace/src
+      - ./data:/home/thiago/workspace/data
+      - ./scripts:/home/thiago/workspace/scripts
+    command: /home/thiago/workspace/scripts/command.sh
+    environment:
+      DISPLAY:
+      QT_X11_NO_MITSHM: 1
+      PYTHONUNBUFFERED: 1
+      TERM: xterm-256color
+      COPPELIA_ZMQ_PORT: 23000
+    hostname: robotics
+    container_name: robotics
+    network_mode: host
+    ipc: host
+    tty: true
+    stdin_open: true
+
+# services:
+  # coppelia:
+  #   image: docker.io/thiagolages/template-robotics:latest
+  #   container_name: coppelia
+  #   command: ["coppeliaSim"]
+  #   build:
+  #     context: .
+  #     dockerfile: docker/Dockerfile
+  #     args:
+  #       # override with the newest tarball if needed
+  #       COPPELIA_FILENAME: "CoppeliaSim_Edu_V4_10_0_rev0_Ubuntu22_04.tar.xz"
+  #   networks:
+  #     - robotics-network
+  #   environment:
+  #     WORKSPACE: /home/thiago/workspace
+  #     QT_X11_NO_MITSHM: 1
+  #     DISPLAY: ${DISPLAY}
+  #   volumes:
+  #     - /tmp/.X11-unix:/tmp/.X11-unix:rw
+  #     - ${HOME}/.Xauthority:/root/.Xauthority:rw
+  #     - ./src:${WORKSPACE}/src
+  #     - ./scripts:${WORKSPACE}/scripts
+
+  # robotics:
+  #   image: docker.io/thiagolages/template-robotics:latest
+  #   container_name: robotics
+  #   entrypoint: ${WORKSPACE}/scripts/entrypoint.sh
+  #   command: python ${WORKSPACE}/src/app.py
+  #   # command: sleep infinity
+
+  #   # depends_on:
+  #   #   - coppelia
+  #   environment:
+  #     WORKSPACE: ${WORKSPACE}
+  #     COPPELIA_ZMQ_PORT: 23000
+  #   volumes:
+  #     - ./src:${WORKSPACE}/src
+  #     - ./scripts:${WORKSPACE}/scripts
+  #   networks:
+  #     - robotics-network

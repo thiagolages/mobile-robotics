@@ -10,7 +10,9 @@ services:
       context: .
       dockerfile: docker/Dockerfile
       args:
-        COPPELIA_FILENAME: "CoppeliaSim_Edu_V4_10_0_rev0_Ubuntu22_04.tar.xz"
+        COPPELIA_VERSION: "4_10_0"
+        COPPELIA_REVISION: "rev0"
+        COPPELIA_OS: "Ubuntu22_04"
     volumes:
       - /tmp/.X11-unix:/tmp/.X11-unix:rw   # GUI sharing
       - ./src:/home/thiago/workspace/src
@@ -29,44 +31,3 @@ services:
     ipc: host
     tty: true
     stdin_open: true
-
-# services:
-  # coppelia:
-  #   image: docker.io/thiagolages/template-robotics:latest
-  #   container_name: coppelia
-  #   command: ["coppeliaSim"]
-  #   build:
-  #     context: .
-  #     dockerfile: docker/Dockerfile
-  #     args:
-  #       # override with the newest tarball if needed
-  #       COPPELIA_FILENAME: "CoppeliaSim_Edu_V4_10_0_rev0_Ubuntu22_04.tar.xz"
-  #   networks:
-  #     - robotics-network
-  #   environment:
-  #     WORKSPACE: /home/thiago/workspace
-  #     QT_X11_NO_MITSHM: 1
-  #     DISPLAY: ${DISPLAY}
-  #   volumes:
-  #     - /tmp/.X11-unix:/tmp/.X11-unix:rw
-  #     - ${HOME}/.Xauthority:/root/.Xauthority:rw
-  #     - ./src:${WORKSPACE}/src
-  #     - ./scripts:${WORKSPACE}/scripts
-
-  # robotics:
-  #   image: docker.io/thiagolages/template-robotics:latest
-  #   container_name: robotics
-  #   entrypoint: ${WORKSPACE}/scripts/entrypoint.sh
-  #   command: python ${WORKSPACE}/src/app.py
-  #   # command: sleep infinity
-
-  #   # depends_on:
-  #   #   - coppelia
-  #   environment:
-  #     WORKSPACE: ${WORKSPACE}
-  #     COPPELIA_ZMQ_PORT: 23000
-  #   volumes:
-  #     - ./src:${WORKSPACE}/src
-  #     - ./scripts:${WORKSPACE}/scripts
-  #   networks:
-  #     - robotics-network

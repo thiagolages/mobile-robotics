@@ -5,24 +5,35 @@ ARG USER_UID=1000
 ARG USER_GID=$USER_UID
 ARG WORKSPACE=/home/$USERNAME/workspace
 
+# CoppeliaSim variables
+# Needs to use underscore instead of dot
+ARG COPPELIA_VERSION="4_10_0"
+ARG COPPELIA_REVISION="rev0"
+ARG COPPELIA_OS="Ubuntu22_04"
+
 ENV HOME=/home/$USERNAME
 ENV WORKSPACE=${WORKSPACE}
 ENV DEBIAN_FRONTEND=noninteractive
 ENV LANG=C.UTF-8
 ENV TZ=Etc/UTC
-ENV COPPELIASIM_VERSION_STRING="4_10_0"
+# CoppeliaSim variables
 ENV COPPELIA_DIR=/opt/CoppeliaSim
-ENV COPPELIA_FILENAME=CoppeliaSim_Edu_V${COPPELIASIM_VERSION_STRING}_rev0_Ubuntu22_04.tar.xz
+ENV COPPELIA_VERSION=${COPPELIA_VERSION}
+ENV COPPELIA_REVISION=${COPPELIA_REVISION}
+ENV COPPELIA_OS=${COPPELIA_OS}
+ENV COPPELIA_FULL_VERSION=${COPPELIA_VERSION}_${COPPELIA_REVISION}
+ENV COPPELIA_FILENAME=CoppeliaSim_Edu_V${COPPELIA_FULL_VERSION}_${COPPELIA_OS}.tar.xz
+ENV COPPELIA_URL=https://downloads.coppeliarobotics.com/V${COPPELIA_FULL_VERSION}/${COPPELIA_FILENAME}
 
-# 1. Set shell to use pipefail option
+# Set shell to use pipefail option
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
-# 2. Install sudo (not present in all minimal images)
+# Install sudo (not present in all minimal images)
 RUN mkdir -p ${WORKSPACE} && \
     apt-get update && apt-get install -y sudo \
     && rm -rf /var/lib/apt/lists/*    # keep image slim
 
-# 3. Create group & user, give a home dir and bash shell
+# Create group & user, give a home dir and bash shell
 RUN groupadd --gid $USER_GID $USERNAME && \
     useradd  --uid  $USER_UID \
             --gid  $USER_GID \
@@ -34,13 +45,13 @@ RUN groupadd --gid $USER_GID $USERNAME && \
     chmod 0440 /etc/sudoers.d/$USERNAME && \
     usermod -aG sudo $USERNAME
 
-# 4. Copy scripts
+# Copy scripts
 WORKDIR ${WORKSPACE}
 COPY requirements.txt .
 COPY src src
 COPY scripts scripts
 
-# 5. Basic build essentials + X11 + Python
+# Basic build essentials + X11 + Python
 RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 \
     python3-venv \
@@ -74,12 +85,19 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libavcodec-dev \
     libavformat-dev \
     libgl1-mesa-dev \
-    libswscale-dev && \
+    libswscale-dev \
+    # Graphics libraries
+    mesa-utils \
+    libgl1 \
+    libglx-mesa0 \
+    libegl1 \
+    libvulkan1 \
+    vulkan-tools && \
     rm -rf /var/lib/apt/lists/* && \
     # refresh linker cache after installing libzmq5 libsodium23 libraries
     ldconfig
 
-# 6. Install Python packages in a virtual environment
+# Install Python packages in a virtual environment
 RUN python3 -m venv $HOME/venv && \
     echo "source $HOME/venv/bin/activate" >> $HOME/.bashrc && \
     echo '#!/bin/bash' >> /usr/local/bin/python && \
@@ -98,12 +116,10 @@ RUN python3 -m venv $HOME/venv && \
     $HOME/venv/bin/pip install --upgrade pip && \
     $HOME/venv/bin/pip install --no-cache-dir -r requirements.txt
 
-# 7. Copy CoppeliaSim
-COPY data/${COPPELIA_FILENAME} /tmp/coppeliaSim.tar.xz
-
-# 8. Extract CoppeliaSim files
+# Extract CoppeliaSim files
 RUN mkdir -p ${COPPELIA_DIR} && \
     mkdir -p $HOME/data && \
+    wget ${COPPELIA_URL} -O /tmp/coppeliaSim.tar.xz && \
     tar -xJf /tmp/coppeliaSim.tar.xz -C ${COPPELIA_DIR} --strip-components=1 && \
     rm /tmp/coppeliaSim.tar.xz && \
     # Make the script executable
@@ -113,22 +129,22 @@ RUN mkdir -p ${COPPELIA_DIR} && \
 
 ENV PATH="/usr/local/bin:${PATH}"
 
-# 9. Expose remote API ports (classic 19997, ZMQ 23000-23050 for multi-sim)
+# Expose remote API ports (classic 19997, ZMQ 23000-23050 for multi-sim)
 EXPOSE 19997 23000-23050
 
-# 10. Set up colored prompt and ls alias for the user
+# Set up colored prompt and ls alias for the user
 RUN echo "force_color_prompt=yes" >> $HOME/.bashrc && \
 echo "alias ls='ls --color=auto'" >> $HOME/.bashrc && \
 echo "source $HOME/venv/bin/activate" >> $HOME/.bashrc
 # echo "export LD_LIBRARY_PATH" >> $HOME/.bashrc && \
 # echo "export PKG_CONFIG_PATH" >> $HOME/.bashrc
 
-# 12. Create the restart_coppelia.sh script
+# Create the restart_coppelia.sh script
 RUN echo '#!/bin/bash' > ${HOME}/restart_coppelia.sh && \
     echo 'pkill -f CoppeliaSim || true' >> ${HOME}/restart_coppelia.sh && \
     echo '${HOME}/command.sh &' >> ${HOME}/restart_coppelia.sh && \
     chmod +x ${HOME}/restart_coppelia.sh && \
     chown ${USERNAME}:${USERNAME} ${HOME}/restart_coppelia.sh
 
-# 13. Add alias to .bashrc
+# Add alias to .bashrc
 RUN echo "alias coppeliasim='${HOME}/start_coppeliasim.sh'" >> ${HOME}/.bashrc

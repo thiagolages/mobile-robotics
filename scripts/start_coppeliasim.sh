@@ -14,4 +14,4 @@ SCENE_FILE=
 #   exec xvfb-run -a "$COPPELIA" -h -q
 # fi
 
-/opt/CoppeliaSim/coppeliaSim.sh -GpreferredSandboxLang=python -GzmqRemoteApi.rpcPort=23000 -GzmqRemoteApi.keepServerAlive=1
+/opt/CoppeliaSim/coppeliaSim.sh -GpreferredSandboxLang=python -GzmqRemoteApi.rpcPort=23000 -GzmqRemoteApi.keepServerAlive=1 "$@"

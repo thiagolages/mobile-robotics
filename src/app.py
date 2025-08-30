@@ -1,15 +1,15 @@
 import os
 import time
 
-from CoppeliaSimAPI import CoppeliaSimAPI
-
 print("Waiting for CoppeliaSim to start...")
 time.sleep(3)
 
-print("Imports...")
-import roboticstoolbox as rtb  # noqa: F401
-from coppeliasim_zmqremoteapi_client import RemoteAPIClient
-from swift import Swift  # noqa: F401
+print("Testing imports...")
+import roboticstoolbox as rtb  # noqa: F401, E402
+from coppeliasim_zmqremoteapi_client import RemoteAPIClient  # noqa: F401, E402
+from swift import Swift  # noqa: F401, E402
+
+from CoppeliaSimAPI import CoppeliaSimAPI  # noqa: F401, E402
 
 print("Python stack OK")
 

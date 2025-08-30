@@ -17,6 +17,9 @@ run:
 shell:
 	docker exec -it $(NAME) bash
 
+stop:
+	docker kill $(NAME) || true
+
 clean:
 	docker compose down -v || true
 	docker image rm $(IMAGE) || true

@@ -1,7 +1,8 @@
 cbor2
-roboticstoolbox-python==1.1.1
-numpy==1.26.4
-swift-sim
 coppeliasim-zmqremoteapi-client
-scipy
 matplotlib
+numpy==1.26.4
+pprintpp
+roboticstoolbox-python==1.1.1
+scipy
+swift-sim

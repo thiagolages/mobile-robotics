@@ -207,11 +207,86 @@ def plot_frame(ax, T, label, frame_size=1.0):
     ax.text(position[0], position[1], position[2], f"  {label}", fontsize=8)
 
 
-def plot_robot_to_object_tfs(robot_name, robot_to_obj_tfs):
+def plot_robot_to_object_lines(
+    ax, robot_to_obj_tfs, robot_name, line_color="orange", line_alpha=0.7
+):
+    """
+    Plot arrows from robot to each object pose.
+
+    Args:
+        ax: matplotlib 3D axis
+        robot_to_obj_tfs: dictionary of robot-to-object transforms
+        robot_name: name of the robot (to skip robot frames)
+        line_color: color of the arrows
+        line_alpha: transparency of the arrows
+    """
+    robot_origin = np.array([0, 0, 0])  # Robot is at origin
+
+    for name, T_robot_obj in robot_to_obj_tfs.items():
+        if robot_name in name:
+            continue  # Skip robot frames
+
+        # Get object position relative to robot
+        obj_position = T_robot_obj[:3, 3]
+
+        # Calculate direction vector from robot to object
+        direction = obj_position - robot_origin
+
+        # Plot arrow from robot to object using quiver
+        ax.quiver(
+            robot_origin[0],
+            robot_origin[1],
+            robot_origin[2],
+            direction[0],
+            direction[1],
+            direction[2],
+            color=line_color,
+            alpha=line_alpha,
+            linewidth=2,
+            arrow_length_ratio=0.1,
+            length=1.0,
+        )
+
+        # Add transform name label at midpoint
+        midpoint = (robot_origin + obj_position) / 2
+        # Plot transform name
+        ax.text(
+            midpoint[0],
+            midpoint[1],
+            midpoint[2],
+            f'T_r_{name.split("_")[0]}',
+            fontsize=6,
+            ha="center",
+            va="center",
+            bbox=dict(boxstyle="round,pad=0.2", facecolor="white", alpha=0.7),
+        )
+        # Plot distance
+        # distance = np.linalg.norm(obj_position)
+        # ax.text(midpoint[0], midpoint[1], midpoint[2],
+        #         f'{distance:.2f}m', fontsize=6, ha='center', va='center',
+        #         bbox=dict(
+        #             boxstyle="round,pad=0.2",
+        #             facecolor='white',
+        #             alpha=0.7
+        #         ))
+
+
+def plot_robot_to_object_tfs(
+    robot_name, robot_to_obj_tfs, save_path=None, camera_angle=None
+):
     """
     Plot 3D frames showing the robot-to-object transforms.
     Robot frame is at origin (0,0,0) with identity orientation.
+
+    Args:
+        robot_name: name of the robot
+        robot_to_obj_tfs: dictionary of robot-to-object transforms
+        save_path: path to save the main plot (default: "robot_frames_3d.png")
+        camera_angle: tuple (elevation, azimuth) for specific camera angle
     """
+    if save_path is None:
+        save_path = "robot_frames_3d.png"
+
     fig = plt.figure(figsize=(12, 10))
     ax = fig.add_subplot(111, projection="3d")
     frame_size = 0.5
@@ -225,15 +300,18 @@ def plot_robot_to_object_tfs(robot_name, robot_to_obj_tfs):
         if robot_name in name:
             print(f"Skipping robot frame for {name}")
             continue
-        print(f"Plotting transform from robot to {name}: {T_robot_obj}")
+        print(f"Plotting transform from robot to {name}: \n{T_robot_obj}")
         plot_frame(ax, T_robot_obj, name, frame_size=frame_size)
         print("-" * 40)
+
+    # Plot lines from robot to objects
+    plot_robot_to_object_lines(ax, robot_to_obj_tfs, robot_name)
 
     # Set up the plot
     ax.set_xlabel("X")
     ax.set_ylabel("Y")
     ax.set_zlabel("Z")
-    ax.set_title("Robot-to-Object Transforms")
+    ax.set_title("Robot-to-Object Transforms with Connection Lines")
 
     # Set equal aspect ratio and reasonable limits
     max_range = 3.0  # Adjust based on your scene size
@@ -252,13 +330,85 @@ def plot_robot_to_object_tfs(robot_name, robot_to_obj_tfs):
         Line2D([0], [0], color="red", lw=2, label="X-axis"),
         Line2D([0], [0], color="green", lw=2, label="Y-axis"),
         Line2D([0], [0], color="blue", lw=2, label="Z-axis"),
+        Line2D(
+            [0],
+            [0],
+            color="orange",
+            lw=2,
+            linestyle="--",
+            label="Robot-Object Arrows",
+        ),
     ]
     ax.legend(handles=legend_elements, loc="upper right")
 
     plt.tight_layout()
 
-    # Save the plot as an image since we're in headless mode
-    plt.savefig("robot_frames_3d.png", dpi=300, bbox_inches="tight")
-    print("3D frame plot saved as 'robot_frames_3d.png'")
+    # Save the main plot
+    plt.savefig(save_path, dpi=300, bbox_inches="tight")
+    print(f"3D frame plot saved as '{save_path}'")
+
+    # Save additional camera angles if specified
+    if camera_angle:
+        elev, azim, roll = camera_angle
+
+        # Set camera view
+        ax.view_init(elev=elev, azim=azim, roll=roll)
+        print(f"Set camera view to elev={elev}°, azim={azim}°, roll={roll}°")
+
+    # Save
+    plt.savefig(save_path, dpi=300, bbox_inches="tight")
+    print(f"Saved as '{save_path}'")
+
     plt.show()
     plt.close()
+
+
+def generate_random_pose(
+    sim, xlim=[-1, 1], ylim=[-1, 1], zlim=[-1, 1], theta_lim=[-1, 1]
+):
+    """
+    Generate a random pose for the robot.
+    Returns a homogeneous transformation matrix.
+    """
+    pose = [
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+    ]  # 12 elements, identity rotation, no translation
+
+    axis = [0, 0, 1]
+    axisPos = [0, 0, 0]
+    # Rotate around the random unit vector
+    pose = sim.rotateAroundAxis(
+        pose, axis, axisPos, np.random.uniform(theta_lim[0], theta_lim[1])
+    )
+    pose = np.array(pose).reshape(3, 4)
+    # Set the position
+    pose[0, 3] = np.random.uniform(xlim[0], xlim[1])
+    pose[1, 3] = np.random.uniform(ylim[0], ylim[1])
+    pose[2, 3] = np.random.uniform(zlim[0], zlim[1])
+
+    pose = np.vstack((pose, np.array([[0, 0, 0, 1]])))
+
+    return pose
+
+
+def set_pose(sim, handle, pose):
+    """
+    Set the pose of an object in the simulation.
+    Receives the pose as a homogeneous transformation matrix and transform
+    it to a list of 7 elements (x, y, z, qx, qy, qz, qw).
+    """
+    pose = pose[:3, :]  # 3 x 4 matrix (12 elements)
+    pose = pose.flatten()
+    pose = sim.matrixToPose(pose)  # Needs 12 elements
+    sim.setObjectPose(handle, sim.handle_world, pose)  # pose as 12 elements

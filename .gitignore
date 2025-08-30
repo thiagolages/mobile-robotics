@@ -1,2 +1,5 @@
 src/__pycache__/
+src/assignments/*/__pycache__/
+src/assignments/*/plots/
 data/*
+venv*/*

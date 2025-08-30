@@ -19,6 +19,7 @@ services:
       - ./src:/home/${USERNAME}/workspace/src
       - ./data:/home/${USERNAME}/workspace/data
       - ./scripts:/home/${USERNAME}/workspace/scripts
+      - ./thirdparty/dcc042-robotica-movel:/home/${USERNAME}/workspace/dcc042-robotica-movel
     command: /home/${USERNAME}/workspace/scripts/command.sh
     environment:
       DISPLAY:

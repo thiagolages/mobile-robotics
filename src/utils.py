@@ -114,7 +114,7 @@ def get_tf(
     tf = tf_from_pose(sim, pose)
     if verbose:
         print(
-            "Transform from {} to {}: {}".format(
+            "Transform from {} to {}:\n{}".format(
                 handle_name if inv else "world",
                 "world" if inv else handle_name,
                 tf,
@@ -125,6 +125,11 @@ def get_tf(
 
 
 def handle_sim_start(sim):
+
+    # Do nothing if stepping
+    # if stepping:
+    #     sim.stopSimulation()
+    #     return
 
     state = sim.getSimulationState()
 
@@ -412,3 +417,55 @@ def set_pose(sim, handle, pose):
     pose = pose.flatten()
     pose = sim.matrixToPose(pose)  # Needs 12 elements
     sim.setObjectPose(handle, sim.handle_world, pose)  # pose as 12 elements
+
+
+def plot_sensor_data(sensor_data, ax=None, show=False):
+    """
+    Plot the sensor data. Expects sensor_data as a 4xN numpy array,
+    where the first 3 rows are X, Y, Z coordinates, and the 4th row is ignored.
+    If ax is provided, plot on the same axes for incremental plotting.
+    If show is True, display and close the plot.
+    Returns the matplotlib axes object for reuse.
+    Adjusts the Z axis range to be between 0 and 1.
+    Sets the camera to look from the top (down the Z axis), with X and Y along the figure width and height.
+    """
+
+    # If no axes provided, create new figure and axes
+    if ax is None:
+        fig = plt.figure(figsize=(12, 10))
+        ax = fig.add_subplot(111, projection="3d")
+        ax.set_xlabel("X")
+        ax.set_ylabel("Y")
+        ax.set_zlabel("Z")
+        ax.set_title("Sensor Data Points")
+    else:
+        fig = ax.get_figure()
+
+    # Ensure sensor_data is a numpy array
+    sensor_data = np.asarray(sensor_data)
+
+    # Check shape: should be 4 x N
+    if sensor_data.shape[0] != 4:
+        raise ValueError(
+            f"sensor_data must have shape 4xN, got {sensor_data.shape}"
+        )
+
+    # Extract X, Y, Z coordinates
+    X = sensor_data[0, :]
+    Y = sensor_data[1, :]
+    Z = sensor_data[2, :]
+
+    # Plot all points at once for efficiency
+    ax.scatter(X, Y, Z, marker="o", s=1, c="red")
+
+    # Adjust Z axis range to be between 0 and 1
+    ax.set_zlim(0, 1)
+
+    # Set the camera to look from the top (down the Z axis)
+    # In matplotlib, elev=90, azim=-90 gives a top-down view with X to right, Y up
+    ax.view_init(elev=90, azim=-90)
+
+    if show:
+        plt.show()  # Use blocking show to ensure the window appears
+
+    return ax, fig

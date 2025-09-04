@@ -6,14 +6,14 @@ from CoppeliaSimAPI import CoppeliaSimAPI  # noqa: F401, E402
 
 
 class Assignment:
-    def __init__(self, sleep=True, auto_start=True, verbose=0):
+    def __init__(self, sleep=True, auto_start=True, stepping=False, verbose=0):
         if sleep:
             print("Waiting for CoppeliaSim to open...")
             time.sleep(3)
         self.port = os.environ.get("COPPELIA_ZMQ_PORT", 23000)
         try:
             self.simAPI = CoppeliaSimAPI(
-                port=self.port, stepping=False, verbose=verbose
+                port=self.port, stepping=stepping, verbose=verbose
             )
             self.sim = self.simAPI.sim
             self.simIK = self.simAPI.simIK

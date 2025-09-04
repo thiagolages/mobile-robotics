@@ -18,14 +18,20 @@ class CoppeliaSimAPI:
         print("Connected to CoppeliaSim API.")
         api_version = self.sim.getInt32Param(self.sim.intparam_program_version)
         print(f"API version: {api_version}")
-
-        self.sim.setStepping(stepping)
+        self.stepping = stepping
+        self.sim.setStepping(self.stepping)
         self.dt = self.sim.getSimulationTimeStep()
         print("Simulation time step:", self.dt)
         print("#" * 40)
 
     def start(self):
         self.sim.startSimulation()
+
+    def resume(self):
+        self.start()
+
+    def pause(self):
+        self.sim.pauseSimulation()
 
     def stop(self):
         self.sim.stopSimulation()

@@ -1,6 +1,11 @@
 import time
+import os
 
+from matplotlib import pyplot as plt
 import numpy as np
+
+# Configure matplotlib for interactive, non-blocking plots
+plt.ion()  # Enable interactive mode
 
 from Assingment import Assignment
 from HokuyoSensorSim import HokuyoSensorSim
@@ -105,6 +110,9 @@ class TP1(Assignment):
         self._finished_exc(id)
 
     def exc4(self):
+        # Create plots directory if it doesn't exist
+        os.makedirs("plots", exist_ok=True)
+        
         for idx in range(1, 5, 1):
             self.sim.step()
             pose = generate_random_pose(
@@ -119,7 +127,9 @@ class TP1(Assignment):
             set_pose(self.sim, self.robot_handle, pose)
             self.get_robot_tfs()
             self.get_robot_to_object_tfs()
-            plot_robot_to_object_tfs(
+            
+            # Plot with non-blocking display
+            fig, ax = plot_robot_to_object_tfs(
                 self.robot_name,
                 self.robot_to_obj_tfs,
                 camera_angle=(50, 70, -15),  # elev, azim, roll
@@ -127,6 +137,13 @@ class TP1(Assignment):
                 title=f"Robot-to-Object Transforms, pose {idx}",
                 verbose=self.verbose,
             )
+            
+            # Small pause to allow the plot window to appear and update
+            plt.pause(0.1)
+            
+        # Keep all plot windows open
+        print("All plots generated. Plot windows should remain open.")
+        plt.pause(0.5)  # Final pause to ensure all windows are displayed
 
     def exc5(self):
         pass
@@ -138,7 +155,7 @@ class TP1(Assignment):
         interval = 3 # seconds
         max_iter = 10 # number of iterations
         current_time = self.sim.getSimulationTime()
-        initial_time = time.time()
+        self.robot_path = []
 
         # Reset robot pose
         print(f"Robot initial pose:\n {self.robot_initial_pose}")
@@ -170,6 +187,9 @@ class TP1(Assignment):
             # Transform from laser to the world (inverse of world to laser)
             self.get_robot_tfs(verbose=self.verbose)
             self.get_laser_tfs(verbose=self.verbose)
+            
+            # Store robot position for path tracking
+            self.robot_path.append(self.T_w_robot[:3, 3].tolist())
 
             self.T_robot_laser = self.T_robot_w @ self.T_w_laser
 
@@ -193,6 +213,9 @@ class TP1(Assignment):
                 )
 
             count += 1
+        
+        print(f"Collected sensor data from {count-1} timesteps")
+        print(f"Robot path has {len(self.robot_path)} points")
 
     def run(self):
         try:
@@ -217,20 +240,37 @@ class TP1(Assignment):
             # (like a dashed line), and all the combined laser readings along
             # the way. They should be plotted in the world frame.
             self.exc(6)
-
+            
+            # Now plot the sensor data with robot path
+            print("Plotting sensor data with robot path...")
+            self.ax, self.fig = plot_sensor_data(
+                self.P_world_array, 
+                ax=self.ax, 
+                show=True, 
+                block=False,
+                robot_path=self.robot_path
+            )
+            
+            # Force the plot to display
+            plt.draw()
+            plt.pause(0.5)  # Longer pause to ensure the plot is fully rendered
+            
             # Pause simulation
             print("Pausing simulation")
             self.sim.pauseSimulation()
-        
-            self.ax, self.fig = plot_sensor_data(self.P_world_array, ax=self.ax, show=True, block=True)
 
+            print("Sensor data plot displayed. Simulation paused.")
+            print("Press Ctrl+C to exit.")
+            
             while True:
-                self.sim.step()
-                time.sleep(1)
+                # Keep the program running and GUI responsive
+                plt.pause(0.1)
+                time.sleep(0.1)
+
         except KeyboardInterrupt:
             print("KeyboardInterrupt")
             self.sim.stopSimulation()
-        
+            plt.close("all")  # Close all plot windows
 
 if __name__ == "__main__":
     tp1 = TP1(verbose=False)

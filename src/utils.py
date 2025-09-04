@@ -6,7 +6,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.lines import Line2D
 
-matplotlib.use("TkAgg")  # Use Agg backend for headless operation
+# Configure matplotlib for interactive, non-blocking plots
+matplotlib.use("TkAgg")  # Use TkAgg backend for interactive display
+plt.ion()  # Enable interactive mode
 
 
 def build_object_dict(sim, excluded_objects):
@@ -334,10 +336,10 @@ def plot_robot_to_object_tfs(
     ax.set_xlabel("X")
     ax.set_ylabel("Y")
     ax.set_zlabel("Z")
-    
+
     if title is None:
-        title="Robot-to-Object Transforms"
-    
+        title = "Robot-to-Object Transforms"
+
     ax.set_title(title)
 
     # Set equal aspect ratio and reasonable limits
@@ -370,25 +372,22 @@ def plot_robot_to_object_tfs(
 
     plt.tight_layout()
 
-    # Save the main plot
-    plt.savefig(save_path, dpi=300, bbox_inches="tight")
-
-    # Save additional camera angles if specified
+    # Set camera angle if specified
     if camera_angle:
         elev, azim, roll = camera_angle
-
-        # Set camera view
         ax.view_init(elev=elev, azim=azim, roll=roll)
         if verbose:
             print(f"Set camera view to elev={elev}°, azim={azim}°, roll={roll}°")
 
-    # Save
+    # Save the plot
     plt.savefig(save_path, dpi=300, bbox_inches="tight")
-    # Always print the save path
     print(f"3D frame plot saved as '{save_path}'")
 
-    plt.show(block=False)
-    # plt.close()
+    # Force the plot to display immediately without blocking
+    plt.draw()
+    plt.pause(0.01)  # Small pause to ensure the plot window appears
+    
+    return fig, ax  # Return figure and axes for potential reuse
 
 
 def generate_random_pose(
@@ -459,15 +458,16 @@ def set_pose(sim, handle, pose):
     sim.setObjectPose(handle, sim.handle_world, pose)  # pose as 12 elements
 
 
-def plot_sensor_data(sensor_data, ax=None, show=False, block=False):
+def plot_sensor_data(sensor_data, ax=None, show=False, block=False, robot_path=None):
     """
     Plot the sensor data. Expects sensor_data as a 4xN numpy array,
     where the first 3 rows are X, Y, Z coordinates, and the 4th row is ignored.
     If ax is provided, plot on the same axes for incremental plotting.
-    If show is True, display and close the plot.
+    If show is True, display the plot.
     Returns the matplotlib axes object for reuse.
     Adjusts the Z axis range to be between 0 and 1.
     Sets the camera to look from the top (down the Z axis), with X and Y along the figure width and height.
+    Also plots the robot path as a dark dashed line if robot_path is provided.
     """
 
     # If no axes provided, create new figure and axes
@@ -477,26 +477,57 @@ def plot_sensor_data(sensor_data, ax=None, show=False, block=False):
         ax.set_xlabel("X")
         ax.set_ylabel("Y")
         ax.set_zlabel("Z")
-        ax.set_title("Sensor Data Points")
+        ax.set_title("Sensor Data Points with Robot Path")
     else:
         fig = ax.get_figure()
 
+    # Plot the robot path as a dark dashed line if provided
+    if robot_path is not None and len(robot_path) > 1:
+        robot_path_np = np.array(robot_path)
+        print(f"Plotting robot path with {len(robot_path)} points")
+        if robot_path_np.shape[1] == 3:
+            ax.plot(
+                robot_path_np[:, 0],
+                robot_path_np[:, 1],
+                robot_path_np[:, 2],
+                color="black",
+                linestyle="--",
+                linewidth=2,
+                label="Robot Path",
+                marker='o',
+                markersize=3
+            )
+            # Add start and end markers
+            ax.scatter(robot_path_np[0, 0], robot_path_np[0, 1], robot_path_np[0, 2], 
+                      color="green", s=100, marker="^", label="Start", zorder=5)
+            ax.scatter(robot_path_np[-1, 0], robot_path_np[-1, 1], robot_path_np[-1, 2], 
+                      color="red", s=100, marker="v", label="End", zorder=5)
+        else:
+            print(f"Warning: Robot path has incorrect shape {robot_path_np.shape}, expected Nx3")
+
     # Ensure sensor_data is a numpy array
-    sensor_data = np.asarray(sensor_data)
+    if sensor_data is not None:
+        sensor_data = np.asarray(sensor_data)
+        print(f"Plotting sensor data with shape: {sensor_data.shape}")
 
-    # Check shape: should be 4 x N
-    if sensor_data.shape[0] != 4:
-        raise ValueError(
-            f"sensor_data must have shape 4xN, got {sensor_data.shape}"
-        )
+        # Check shape: should be 4 x N
+        if sensor_data.shape[0] != 4:
+            raise ValueError(
+                f"sensor_data must have shape 4xN, got {sensor_data.shape}"
+            )
 
-    # Extract X, Y, Z coordinates
-    X = sensor_data[0, :]
-    Y = sensor_data[1, :]
-    Z = sensor_data[2, :]
+        # Extract X, Y, Z coordinates
+        X = sensor_data[0, :]
+        Y = sensor_data[1, :]
+        Z = sensor_data[2, :]
+        x_range = [X.min() - 1, X.max() + 1]
+        y_range = [Y.min() - 1, Y.max() + 1]
+        ax.set_xlim(x_range)
+        ax.set_ylim(y_range)
 
-    # Plot all points at once for efficiency
-    ax.scatter(X, Y, Z, marker="o", s=1, c="red")
+        # Plot all points at once for efficiency
+        ax.scatter(X, Y, Z, marker="o", s=1, c="red", alpha=0.6, label="Laser Points")
+        print(f"Plotted {len(X)} sensor points")
 
     # Adjust Z axis range to be between 0 and 1
     ax.set_zlim(0, 1)
@@ -504,10 +535,14 @@ def plot_sensor_data(sensor_data, ax=None, show=False, block=False):
     # Set the camera to look from the top (down the Z axis)
     # In matplotlib, elev=90, azim=-90 gives a top-down view with X to right, Y up
     ax.view_init(elev=90, azim=-90)
+    
+    # Add legend
+    ax.legend()
 
     if show:
-        plt.show(block=block)  # Use blocking show to ensure the window appears
-        time.sleep(0.5) # Wait for the window to appear
+        plt.draw()
+        plt.pause(0.1)  # Longer pause to ensure the plot window appears and updates
+        print("Sensor data plot displayed")
 
     return ax, fig
 

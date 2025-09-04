@@ -13,6 +13,7 @@ class CoppeliaSimAPI:
         print(f"Trying to connect to CoppeliaSim API on port {port}")
         self.client = RemoteAPIClient("localhost", port, verbose=verbose)
         self.sim = self.client.require("sim")
+        self.simIK = self.client.require("simIK")
 
         print("Connected to CoppeliaSim API.")
         api_version = self.sim.getInt32Param(self.sim.intparam_program_version)

@@ -16,6 +16,7 @@ class Assignment:
                 port=self.port, stepping=False, verbose=verbose
             )
             self.sim = self.simAPI.sim
+            self.simIK = self.simAPI.simIK
             if auto_start:
                 self.simAPI.start()
                 time.sleep(1)  # wait for the simulation to start

@@ -1,13 +1,8 @@
-import numpy as np
-
 from Assingment import Assignment
 from utils import (
     build_object_dict,
-    generate_random_pose,
     get_tf,
     handle_sim_start,
-    plot_robot_to_object_tfs,
-    set_pose,
 )
 
 
@@ -50,28 +45,54 @@ class TP1(Assignment):
             print("-" * 40)
 
     def run(self):
-        handle_sim_start(self.sim)
+        # 0 - Setup
+        sim = self.sim
+        handle_sim_start(sim)
         self.get_robot_tfs()
         self.get_robot_to_object_tfs()
 
-        for idx in range(4):
-            pose = generate_random_pose(
-                self.sim,
-                xlim=[-1, 1],
-                ylim=[-1, 1],
-                zlim=[self.T_w_robot[2, 3], self.T_w_robot[2, 3]],  # curr Z
-                theta_lim=[0, 2 * np.pi],
-            )
-            print(f"Random pose {idx}: \n{pose}")
-            set_pose(self.sim, self.robot_handle, pose)
-            self.get_robot_tfs()
-            self.get_robot_to_object_tfs()
-            plot_robot_to_object_tfs(
-                self.robot_name,
-                self.robot_to_obj_tfs,
-                camera_angle=(50, 70, -15),  # elev, azim, roll
-                save_path=f"plots/{idx}_plot.png",
-            )
+        # Questions 3 and 4
+        # 3 - Plot the transforms from the robot to all objects in the scene
+        # 4 - Repeat question 3 for 3x other random poses
+
+        # for idx in range(4):
+        #     pose = generate_random_pose(
+        #         sim,
+        #         xlim=[-1, 1],
+        #         ylim=[-1, 1],
+        #         zlim=[self.T_w_robot[2, 3], self.T_w_robot[2, 3]],  # curr Z
+        #         theta_lim=[0, 2 * np.pi],
+        #     )
+        #     print(f"Random pose {idx}: \n{pose}")
+        #     set_pose(sim, self.robot_handle, pose)
+        #     self.get_robot_tfs()
+        #     self.get_robot_to_object_tfs()
+        #     plot_robot_to_object_tfs(
+        #         self.robot_name,
+        #         self.robot_to_obj_tfs,
+        #         camera_angle=(50, 70, -15),  # elev, azim, roll
+        #         save_path=f"plots/{idx}_plot.png",
+        #     )
+
+        # Question 5
+        # Add a laser to the robot;
+        # Define transform T_r_l (robot as reference, laser being described)
+        # Define transform T_w_r (world as reference, robot being described)
+        # Plot the laser points with respect to the world frame
+        # p_w = T_w_l @ p_l
+
+        # Transform from laser to the world (inverse of world to laser)
+        T_l_w = get_tf(sim, self.laser_handle, inv=True, verbose=False)
+        T_r_l = T_l_w @ self.T_w_robot
+        print(f"Transform from robot to laser: \n {T_r_l}")
+        print(f"Transform from world to robot: \n {self.T_w_robot}")
+
+        print("Transforming points in the laser frame to world frame:")
+
+        # Question 6
+        # Make an incremental plot showing the path executed by the robot
+        # (like a dashed line), and all the combined laser readings along
+        # the way. They should be plotted in the world frame.
 
 
 if __name__ == "__main__":

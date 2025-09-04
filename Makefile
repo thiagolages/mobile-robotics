@@ -1,14 +1,12 @@
 IMAGE ?= docker.io/thiagolages/template-robotics:latest
 NAME=robotics
+USERNAME=$(shell id -un)
 
 build:
-	docker build -t $(IMAGE) -f docker/Dockerfile .
-
-run-headless: build
-	docker compose up -d --remove-orphans
+	docker build -t $(IMAGE) -f docker/Dockerfile --build-arg USERNAME=$(USERNAME) .
 
 run-detached:
-	docker compose up -d --remove-orphans
+	USERNAME=$(USERNAME) docker compose up -d --remove-orphans
 
 run:
 	$(MAKE) run-detached

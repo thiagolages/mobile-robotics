@@ -10,6 +10,7 @@ matplotlib.use("TkAgg")  # Use Agg backend for headless operation
 
 
 def build_object_dict(sim, excluded_objects):
+    print("Building object dictionary")
     obj_handles = get_frame_handles(sim, excluded_objects)
     obj_names = get_frame_names(sim, obj_handles)
     obj_poses = get_frame_poses(sim, obj_handles)
@@ -49,21 +50,26 @@ def get_frame_handles(sim, excluded_objects=None, verbose=False):
     return handles
 
 
-def get_frame_names(sim, handles):
+def get_frame_names(sim, handles, verbose=False):
     names = []
     for handle in handles:
-        print(f"Getting name for handle = {handle}")
-        names.append(sim.getObjectAlias(handle))
-        print(f"Name: {sim.getObjectAlias(handle)}")
+        name = sim.getObjectAlias(handle)
+        names.append(name)
+        if verbose:
+            print(f"Getting name for handle = {handle}")
+            print(f"Name: {name}")
 
     return names
 
 
-def get_frame_poses(sim, handles):
+def get_frame_poses(sim, handles, verbose=False):
     poses = []
     for handle in handles:
-        print(f"Getting pose for handle = {handle}")
-        poses.append(sim.getObjectPose(handle))
+        pose = sim.getObjectPose(handle)
+        poses.append(pose)
+        if verbose:
+            print(f"Getting pose for handle = {handle}")
+            print(f"Pose: {pose}")
 
     return poses
 
@@ -134,18 +140,26 @@ def handle_sim_start(sim):
     state = sim.getSimulationState()
 
     if state == sim.simulation_stopped:
+        print("-" * 40)
         print("Starting simulation")
+        print("-" * 40)
         sim.startSimulation()
     elif state == sim.simulation_paused:
+        print("-" * 40)
         print("Simulation is paused, stopping it and then starting it")
+        print("-" * 40)
         sim.stopSimulation()
         time.sleep(1)
+        print("-" * 40)
         print("Starting simulation")
+        print("-" * 40)
         sim.startSimulation()
     else:
         sim.stopSimulation()
         time.sleep(1)
+        print("-" * 40)
         print("Starting simulation")
+        print("-" * 40)
         sim.startSimulation()
 
 
@@ -213,7 +227,7 @@ def plot_frame(ax, T, label, frame_size=1.0):
 
 
 def plot_robot_to_object_lines(
-    ax, robot_to_obj_tfs, robot_name, line_color="orange", line_alpha=0.7
+    ax, robot_to_obj_tfs, robot_name, line_color="orange", line_alpha=0.7, verbose=False
 ):
     """
     Plot arrows from robot to each object pose.
@@ -224,6 +238,7 @@ def plot_robot_to_object_lines(
         robot_name: name of the robot (to skip robot frames)
         line_color: color of the arrows
         line_alpha: transparency of the arrows
+        verbose: whether to print verbose output
     """
     robot_origin = np.array([0, 0, 0])  # Robot is at origin
 
@@ -251,7 +266,8 @@ def plot_robot_to_object_lines(
             arrow_length_ratio=0.1,
             length=1.0,
         )
-
+        if verbose:
+            print(f"Plotting transform from robot to {name}: \n{T_robot_obj}")
         # Add transform name label at midpoint
         midpoint = (robot_origin + obj_position) / 2
         # Plot transform name
@@ -277,7 +293,7 @@ def plot_robot_to_object_lines(
 
 
 def plot_robot_to_object_tfs(
-    robot_name, robot_to_obj_tfs, save_path=None, camera_angle=None
+    robot_name, robot_to_obj_tfs, save_path=None, camera_angle=None, verbose=False, title=None
 ):
     """
     Plot 3D frames showing the robot-to-object transforms.
@@ -288,6 +304,7 @@ def plot_robot_to_object_tfs(
         robot_to_obj_tfs: dictionary of robot-to-object transforms
         save_path: path to save the main plot (default: "robot_frames_3d.png")
         camera_angle: tuple (elevation, azimuth) for specific camera angle
+        verbose: whether to print verbose output
     """
     if save_path is None:
         save_path = "robot_frames_3d.png"
@@ -305,18 +322,23 @@ def plot_robot_to_object_tfs(
         if robot_name in name:
             print(f"Skipping robot frame for {name}")
             continue
-        print(f"Plotting transform from robot to {name}: \n{T_robot_obj}")
+        if verbose:
+            print(f"Plotting transform from robot to {name}: \n{T_robot_obj}")
+            print("-" * 40)
         plot_frame(ax, T_robot_obj, name, frame_size=frame_size)
-        print("-" * 40)
 
     # Plot lines from robot to objects
-    plot_robot_to_object_lines(ax, robot_to_obj_tfs, robot_name)
+    plot_robot_to_object_lines(ax, robot_to_obj_tfs, robot_name, verbose=verbose)
 
     # Set up the plot
     ax.set_xlabel("X")
     ax.set_ylabel("Y")
     ax.set_zlabel("Z")
-    ax.set_title("Robot-to-Object Transforms with Connection Lines")
+    
+    if title is None:
+        title="Robot-to-Object Transforms"
+    
+    ax.set_title(title)
 
     # Set equal aspect ratio and reasonable limits
     max_range = 3.0  # Adjust based on your scene size
@@ -350,7 +372,6 @@ def plot_robot_to_object_tfs(
 
     # Save the main plot
     plt.savefig(save_path, dpi=300, bbox_inches="tight")
-    print(f"3D frame plot saved as '{save_path}'")
 
     # Save additional camera angles if specified
     if camera_angle:
@@ -358,14 +379,16 @@ def plot_robot_to_object_tfs(
 
         # Set camera view
         ax.view_init(elev=elev, azim=azim, roll=roll)
-        print(f"Set camera view to elev={elev}°, azim={azim}°, roll={roll}°")
+        if verbose:
+            print(f"Set camera view to elev={elev}°, azim={azim}°, roll={roll}°")
 
     # Save
     plt.savefig(save_path, dpi=300, bbox_inches="tight")
-    print(f"Saved as '{save_path}'")
+    # Always print the save path
+    print(f"3D frame plot saved as '{save_path}'")
 
-    plt.show()
-    plt.close()
+    plt.show(block=False)
+    # plt.close()
 
 
 def generate_random_pose(
@@ -413,13 +436,30 @@ def set_pose(sim, handle, pose):
     Receives the pose as a homogeneous transformation matrix and transform
     it to a list of 7 elements (x, y, z, qx, qy, qz, qw).
     """
-    pose = pose[:3, :]  # 3 x 4 matrix (12 elements)
+    if isinstance(pose, list):
+        if len(pose) == 12:
+            pose = np.array(pose).reshape(3, 4)
+            pose = np.vstack((pose, np.array([[0, 0, 0, 1]])))
+        else:
+            raise ValueError(f"Pose must be a 3x4 matrix or list of 12 elements. Got {len(pose)} elements")
+    if isinstance(pose, np.ndarray):
+        pass
+    else:
+        raise ValueError(f"Pose must be a 3x4 matrix or list of 12 elements. Got {type(pose)}")
+    
+    if pose.shape == (4, 4):
+        pose = pose[:3, :]  # 3 x 4 matrix (12 elements)
+    if pose.shape == (3, 4):
+        pass
+    else:
+        raise ValueError(f"Pose must be a 3x4 matrix or list of 12 elements. Got {pose.shape} elements")
+    
     pose = pose.flatten()
     pose = sim.matrixToPose(pose)  # Needs 12 elements
     sim.setObjectPose(handle, sim.handle_world, pose)  # pose as 12 elements
 
 
-def plot_sensor_data(sensor_data, ax=None, show=False):
+def plot_sensor_data(sensor_data, ax=None, show=False, block=False):
     """
     Plot the sensor data. Expects sensor_data as a 4xN numpy array,
     where the first 3 rows are X, Y, Z coordinates, and the 4th row is ignored.
@@ -466,6 +506,61 @@ def plot_sensor_data(sensor_data, ax=None, show=False):
     ax.view_init(elev=90, azim=-90)
 
     if show:
-        plt.show()  # Use blocking show to ensure the window appears
+        plt.show(block=block)  # Use blocking show to ensure the window appears
+        time.sleep(0.5) # Wait for the window to appear
 
     return ax, fig
+
+def visualize_sensor_data(self, sensor_data_list, frame='world'):
+    """
+    Visualize sensor data points in a 3D plot.
+    
+    Args:
+        sensor_data_list: List of sensor data dictionaries
+        frame: Which frame to plot ('laser', 'robot', or 'world')
+    """
+    import matplotlib.pyplot as plt
+    from mpl_toolkits.mplot3d import Axes3D
+    
+    if not sensor_data_list:
+        print("No sensor data to visualize")
+        return
+        
+    fig = plt.figure(figsize=(10, 8))
+    ax = fig.add_subplot(111, projection='3d')
+    
+    points = []
+    for data in sensor_data_list:
+        if isinstance(data, dict) and 'data' in data:
+            # Full scan data
+            point = data['data'][f'{frame}_frame']
+        else:
+            # Single reading data
+            point = data[f'{frame}_frame']
+        points.append(point)
+    
+    if points:
+        points = np.array(points)
+        ax.scatter(points[:, 0], points[:, 1], points[:, 2], 
+                    c='red', s=50, alpha=0.7, label='Sensor Points')
+        
+        ax.set_xlabel(f'X ({frame} frame)')
+        ax.set_ylabel(f'Y ({frame} frame)')
+        ax.set_zlabel(f'Z ({frame} frame)')
+        ax.set_title(f'Hokuyo Sensor Points in {frame.title()} Frame')
+        ax.legend()
+        
+        # Set equal aspect ratio
+        max_range = np.array([points[:,0].max()-points[:,0].min(),
+                            points[:,1].max()-points[:,1].min(),
+                            points[:,2].max()-points[:,2].min()]).max() / 2.0
+        mid_x = (points[:,0].max()+points[:,0].min()) * 0.5
+        mid_y = (points[:,1].max()+points[:,1].min()) * 0.5
+        mid_z = (points[:,2].max()+points[:,2].min()) * 0.5
+        ax.set_xlim(mid_x - max_range, mid_x + max_range)
+        ax.set_ylim(mid_y - max_range, mid_y + max_range)
+        ax.set_zlim(mid_z - max_range, mid_z + max_range)
+        
+        plt.show()
+    else:
+        print("No valid points to plot")

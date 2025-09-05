@@ -11,11 +11,11 @@ matplotlib.use("TkAgg")  # Use TkAgg backend for interactive display
 plt.ion()  # Enable interactive mode
 
 
-def build_object_dict(sim, excluded_objects):
+def build_object_dict(sim, excluded_objects, verbose=False):
     print("Building object dictionary")
-    obj_handles = get_frame_handles(sim, excluded_objects)
-    obj_names = get_frame_names(sim, obj_handles)
-    obj_poses = get_frame_poses(sim, obj_handles)
+    obj_handles = get_frame_handles(sim, excluded_objects, verbose=verbose)
+    obj_names = get_frame_names(sim, obj_handles, verbose=verbose)
+    obj_poses = get_frame_poses(sim, obj_handles, verbose=verbose)
     assert obj_handles is not None
     assert obj_names is not None
     assert obj_poses is not None
@@ -47,6 +47,8 @@ def get_frame_handles(sim, excluded_objects=None, verbose=False):
             and "_frame" in sim.getObjectAlias(handle)  # noqa: W503
         )
     ]
+    for handle in handles:
+        print(f"Handle: {handle} | Alias: {sim.getObjectAlias(handle)}")
     print(f"Found {len(handles)} handles: {handles}")
 
     return handles
@@ -229,7 +231,7 @@ def plot_frame(ax, T, label, frame_size=1.0):
 
 
 def plot_robot_to_object_lines(
-    ax, robot_to_obj_tfs, robot_name, line_color="orange", line_alpha=0.7, verbose=False
+    ax, robot_to_obj_tfs, robot_name, T_w_robot, line_color="orange", line_alpha=0.7, verbose=False
 ):
     """
     Plot arrows from robot to each object pose.
@@ -242,14 +244,17 @@ def plot_robot_to_object_lines(
         line_alpha: transparency of the arrows
         verbose: whether to print verbose output
     """
-    robot_origin = np.array([0, 0, 0])  # Robot is at origin
+    robot_origin = T_w_robot[:3, 3]
 
     for name, T_robot_obj in robot_to_obj_tfs.items():
         if robot_name in name:
             continue  # Skip robot frames
 
+        # Transform object to world frame
+        T_w_obj = T_w_robot @ T_robot_obj
+
         # Get object position relative to robot
-        obj_position = T_robot_obj[:3, 3]
+        obj_position = T_w_obj[:3, 3]
 
         # Calculate direction vector from robot to object
         direction = obj_position - robot_origin
@@ -295,7 +300,14 @@ def plot_robot_to_object_lines(
 
 
 def plot_robot_to_object_tfs(
-    robot_name, robot_to_obj_tfs, save_path=None, camera_angle=None, verbose=False, title=None
+    robot_name, 
+    robot_to_obj_tfs, 
+    T_w_robot=None,
+    save_path=None, 
+    camera_angle=None, 
+    verbose=False, 
+    title=None,
+    show=True
 ):
     """
     Plot 3D frames showing the robot-to-object transforms.
@@ -316,8 +328,10 @@ def plot_robot_to_object_tfs(
     frame_size = 0.5
 
     # Plot robot frame at origin with identity orientation
-    robot_tf = np.eye(4)  # Identity matrix - robot at origin
-    plot_frame(ax, robot_tf, robot_name, frame_size=frame_size)
+    if T_w_robot is None:
+        T_w_robot = np.eye(4)  # Identity matrix - robot at origin
+
+    plot_frame(ax, T_w_robot, robot_name, frame_size=frame_size)
 
     # Plot frames for each object relative to robot
     for name, T_robot_obj in robot_to_obj_tfs.items():
@@ -327,10 +341,18 @@ def plot_robot_to_object_tfs(
         if verbose:
             print(f"Plotting transform from robot to {name}: \n{T_robot_obj}")
             print("-" * 40)
-        plot_frame(ax, T_robot_obj, name, frame_size=frame_size)
+        # Plot obj in world frame
+        T_w_obj = T_w_robot @ T_robot_obj
+        plot_frame(ax, T_w_obj, name, frame_size=frame_size)
 
     # Plot lines from robot to objects
-    plot_robot_to_object_lines(ax, robot_to_obj_tfs, robot_name, verbose=verbose)
+    plot_robot_to_object_lines(
+        ax, 
+        robot_to_obj_tfs, 
+        robot_name, 
+        T_w_robot,
+        verbose=verbose
+    )
 
     # Set up the plot
     ax.set_xlabel("X")
@@ -384,13 +406,14 @@ def plot_robot_to_object_tfs(
     print(f"3D frame plot saved as '{save_path}'")
 
     # Force the plot to display immediately without blocking
-    plt.draw()
-    plt.pause(0.01)  # Small pause to ensure the plot window appears
+    if show:
+        plt.draw()
+        plt.pause(0.01)  # Small pause to ensure the plot window appears
     
     return fig, ax  # Return figure and axes for potential reuse
 
 
-def generate_random_pose(
+def generate_random_tf(
     sim, xlim=[-1, 1], ylim=[-1, 1], zlim=[-1, 1], theta_lim=[-1, 1]
 ):
     """
@@ -458,7 +481,14 @@ def set_pose(sim, handle, pose):
     sim.setObjectPose(handle, sim.handle_world, pose)  # pose as 12 elements
 
 
-def plot_sensor_data(sensor_data, ax=None, show=False, block=False, robot_path=None):
+def plot_sensor_data(
+    sensor_data, 
+    ax=None, 
+    show=False, 
+    block=False, 
+    robot_path=None, 
+    save_path=None, 
+    range_dict=None):
     """
     Plot the sensor data. Expects sensor_data as a 4xN numpy array,
     where the first 3 rows are X, Y, Z coordinates, and the 4th row is ignored.
@@ -470,6 +500,13 @@ def plot_sensor_data(sensor_data, ax=None, show=False, block=False, robot_path=N
     Also plots the robot path as a dark dashed line if robot_path is provided.
     """
 
+    if range_dict is None:
+        range_dict = {
+            "x": [-3, 3],
+            "y": [-3, 3],
+            "z": [0, 1],
+        }
+
     # If no axes provided, create new figure and axes
     if ax is None:
         fig = plt.figure(figsize=(12, 10))
@@ -477,13 +514,16 @@ def plot_sensor_data(sensor_data, ax=None, show=False, block=False, robot_path=N
         ax.set_xlabel("X")
         ax.set_ylabel("Y")
         ax.set_zlabel("Z")
-        ax.set_title("Sensor Data Points with Robot Path")
+        ax.set_title("Sensor Data Points")
     else:
         fig = ax.get_figure()
 
     # Plot the robot path as a dark dashed line if provided
     if robot_path is not None and len(robot_path) > 1:
         robot_path_np = np.array(robot_path)
+        if len(robot_path_np.shape) == 1:
+            robot_path_np = np.array([robot_path_np])
+
         print(f"Plotting robot path with {len(robot_path)} points")
         if robot_path_np.shape[1] == 3:
             ax.plot(
@@ -499,9 +539,10 @@ def plot_sensor_data(sensor_data, ax=None, show=False, block=False, robot_path=N
             )
             # Add start and end markers
             ax.scatter(robot_path_np[0, 0], robot_path_np[0, 1], robot_path_np[0, 2], 
-                      color="green", s=100, marker="^", label="Start", zorder=5)
-            ax.scatter(robot_path_np[-1, 0], robot_path_np[-1, 1], robot_path_np[-1, 2], 
-                      color="red", s=100, marker="v", label="End", zorder=5)
+                    color="green", s=100, marker="^", label="Start", zorder=5)
+            if robot_path_np.shape[0] > 1:
+                ax.scatter(robot_path_np[-1, 0], robot_path_np[-1, 1], robot_path_np[-1, 2], 
+                        color="red", s=100, marker="v", label="End", zorder=5)
         else:
             print(f"Warning: Robot path has incorrect shape {robot_path_np.shape}, expected Nx3")
 
@@ -520,17 +561,17 @@ def plot_sensor_data(sensor_data, ax=None, show=False, block=False, robot_path=N
         X = sensor_data[0, :]
         Y = sensor_data[1, :]
         Z = sensor_data[2, :]
-        x_range = [X.min() - 1, X.max() + 1]
-        y_range = [Y.min() - 1, Y.max() + 1]
-        ax.set_xlim(x_range)
-        ax.set_ylim(y_range)
+        # x_range = [X.min() - 1, X.max() + 1]
+        # y_range = [Y.min() - 1, Y.max() + 1]
+        ax.set_xlim(range_dict["x"])
+        ax.set_ylim(range_dict["y"])
 
         # Plot all points at once for efficiency
         ax.scatter(X, Y, Z, marker="o", s=1, c="red", alpha=0.6, label="Laser Points")
         print(f"Plotted {len(X)} sensor points")
 
     # Adjust Z axis range to be between 0 and 1
-    ax.set_zlim(0, 1)
+    ax.set_zlim(range_dict["z"])
 
     # Set the camera to look from the top (down the Z axis)
     # In matplotlib, elev=90, azim=-90 gives a top-down view with X to right, Y up
@@ -538,6 +579,10 @@ def plot_sensor_data(sensor_data, ax=None, show=False, block=False, robot_path=N
     
     # Add legend
     ax.legend()
+
+    if save_path is not None:
+        plt.savefig(save_path, dpi=300, bbox_inches="tight")
+        print(f"Sensor data plot saved as '{save_path}'")
 
     if show:
         plt.draw()

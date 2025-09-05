@@ -13,7 +13,7 @@ class Assignment:
         self.port = os.environ.get("COPPELIA_ZMQ_PORT", 23000)
         try:
             self.simAPI = CoppeliaSimAPI(
-                port=self.port, stepping=stepping, verbose=verbose
+                port=self.port, stepping=stepping, verbose=int(verbose)
             )
             self.sim = self.simAPI.sim
             self.simIK = self.simAPI.simIK

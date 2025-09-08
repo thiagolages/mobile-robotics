@@ -1,2 +1,4 @@
 src/__pycache__/
+src/assignments/*/__pycache__/
 data/*
+venv*/*

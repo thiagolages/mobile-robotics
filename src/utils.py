@@ -539,10 +539,10 @@ def plot_sensor_data(
             )
             # Add start and end markers
             ax.scatter(robot_path_np[0, 0], robot_path_np[0, 1], robot_path_np[0, 2], 
-                    color="green", s=100, marker="^", label="Start", zorder=5)
+                    color="green", s=100, marker="8", label="Start", zorder=5)
             if robot_path_np.shape[0] > 1:
                 ax.scatter(robot_path_np[-1, 0], robot_path_np[-1, 1], robot_path_np[-1, 2], 
-                        color="red", s=100, marker="v", label="End", zorder=5)
+                        color="red", s=100, marker="8", label="End", zorder=5)
         else:
             print(f"Warning: Robot path has incorrect shape {robot_path_np.shape}, expected Nx3")
 

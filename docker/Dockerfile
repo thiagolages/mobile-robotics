@@ -17,6 +17,7 @@ ENV WORKSPACE=${WORKSPACE}
 ENV DEBIAN_FRONTEND=noninteractive
 ENV LANG=C.UTF-8
 ENV TZ=Etc/UTC
+
 # CoppeliaSim variables
 ENV COPPELIA_DIR=/opt/CoppeliaSim
 ENV COPPELIA_VERSION=${COPPELIA_VERSION}
@@ -62,6 +63,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     sudo \
     unzip \
     build-essential \
+    eog \
     git \
     wget \
     curl \

@@ -4,6 +4,6 @@
 $HOME/venv/bin/python $HOME/workspace/src/app.py &
 
 # Start CoppeliaSim
-$HOME/workspace/scripts/start_coppeliasim.sh $HOME/workspace/src/scenes/TP1.ttt
+$HOME/workspace/scripts/start_coppeliasim.sh $HOME/workspace/src/assignments/tp2/scenes/TP2-map1.ttt
 
 sleep infinity

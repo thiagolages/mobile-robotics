@@ -1,4 +1,4 @@
-from Assingment import Assignment
+from Assignment import Assignment
 from utils import (
     build_object_dict,
     get_tf,

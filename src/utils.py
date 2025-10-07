@@ -454,6 +454,7 @@ def plot_sensor_data(
 
     return ax, fig
 
+
 def visualize_sensor_data(self, sensor_data_list, frame='world'):
     """
     Visualize sensor data points in a 3D plot.

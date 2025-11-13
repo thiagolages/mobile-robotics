@@ -483,6 +483,7 @@ def set_pose(sim, handle, pose):
 
 def plot_sensor_data(
     sensor_data, 
+    waypoints=None,
     ax=None, 
     show=False, 
     block=False, 
@@ -509,7 +510,8 @@ def plot_sensor_data(
 
     # If no axes provided, create new figure and axes
     if ax is None:
-        fig = plt.figure(figsize=(12, 10))
+        # Use figure 2 to avoid conflicts with map plot (figure 1)
+        fig = plt.figure(2, figsize=(12, 10))
         ax = fig.add_subplot(111, projection="3d")
         ax.set_xlabel("X")
         ax.set_ylabel("Y")
@@ -538,11 +540,31 @@ def plot_sensor_data(
                 markersize=3
             )
             # Add start and end markers
-            ax.scatter(robot_path_np[0, 0], robot_path_np[0, 1], robot_path_np[0, 2], 
-                    color="green", s=100, marker="8", label="Start", zorder=5)
-            if robot_path_np.shape[0] > 1:
-                ax.scatter(robot_path_np[-1, 0], robot_path_np[-1, 1], robot_path_np[-1, 2], 
-                        color="red", s=100, marker="8", label="End", zorder=5)
+            if last_plot:
+                ax.scatter(robot_path_np[0, 0], robot_path_np[0, 1], robot_path_np[0, 2], 
+                        color="green", s=100, marker="8", label="Start", zorder=5)
+                if robot_path_np.shape[0] > 1:
+                    ax.scatter(robot_path_np[-1, 0], robot_path_np[-1, 1], robot_path_np[-1, 2], 
+                            color="red", s=100, marker="8", label="End", zorder=5)
+            
+            # Add waypoints
+            if waypoints is not None and len(waypoints) > 0:
+                waypoints_np = np.array(waypoints) # N x 2 array
+                
+                # Stack with z-coordinate from robot_path
+                z_value = robot_path_np[0, 2]
+                if waypoints_np.shape[1] == 2:
+                    # Add z-coordinate column
+                    z_column = np.full((waypoints_np.shape[0], 1), z_value)
+                    waypoints_np = np.column_stack([waypoints_np, z_column])
+                elif waypoints_np.shape[1] == 3:
+                    pass
+                else:
+                    raise ValueError(f"Waypoints must have shape Nx2 or Nx3, got {waypoints_np.shape}")
+                
+                ax.scatter(waypoints_np[:, 0], waypoints_np[:, 1], waypoints_np[:, 2], 
+                            color="blue", s=100, marker="x", label="Waypoints")
+
         else:
             print(f"Warning: Robot path has incorrect shape {robot_path_np.shape}, expected Nx3")
 
@@ -589,6 +611,8 @@ def plot_sensor_data(
     if show:
         plt.draw()
         plt.pause(0.1)  # Longer pause to ensure the plot window appears and updates
+        # Show all figures (both map and sensor data)
+        plt.show(block=False)
         print("Sensor data plot displayed")
 
     return ax, fig

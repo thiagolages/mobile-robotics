@@ -134,7 +134,7 @@ def get_tf(
     return tf
 
 
-def handle_sim_start(sim):
+def handle_sim_start(sim, stop=None):
 
     # Do nothing if stepping
     # if stepping:
@@ -159,7 +159,12 @@ def handle_sim_start(sim):
         print("-" * 40)
         sim.startSimulation()
     else:
-        sim.stopSimulation()
+        # If stop is not defined, keep stopping as we did before
+        if stop is None:
+            sim.stopSimulation()
+        elif stop: # If stop is defined and True, stop sim. Otherwise, don't.
+            sim.stopSimulation()
+
         time.sleep(1)
         print("-" * 40)
         print("Starting simulation")

@@ -18,16 +18,17 @@ class DroneShow():
         self.param_eta_v = 0.1
         self.param_v_max = 4.0 #0.4
         self.param_a_max = 5.0 #0.5
-        self.param_radius = 0.25
+        self.param_radius = 0.1 # drone sphere radius,for obs avoidance
+        self.mov_obs_radius = 0.5 # radius of moving obstacle
         self.param_height = 0.35
         self.param_n_robots = 10
         self.param_dist_interm = 0.3
         self.param_dist_final = 0.05
         self.param_h_dist = 1e-6
         self.param_eps_dist = 1e-6
-        self.param_delta = 0.01
-        self.param_min_dist_drone_tg = 0.01 #0.25
-        self.param_min_dist_tg = 0.01 #0.25
+        self.param_delta = 0.1 # safety margin
+        self.param_min_dist_drone_tg = 0.25 # minimum distance between drone and target point
+        self.param_min_dist_tg = 0.25 # minimum distance between target points
         
         self.param_t_max = 800
         self.param_max_pc_points_per_frame = 100
@@ -39,8 +40,8 @@ class DroneShow():
         self.param_zmin = -100.0
         self.param_zmax = 100.0
         self.dt = 0.02 # 0.02
-        self.drone_sphere_radius = 0.075
         self.drone_sphere_opacity = 0.7
+
         self.param_dict = dict(
             param_k = self.param_k,
             param_eta = self.param_eta,
@@ -110,6 +111,7 @@ class DroneShow():
         self.sim.add(self.all_obstacles)
         # self.sim.add(self.all_tg_box)
         self.sim.add(self.master_path_pc)
+        self.sim.add(self.mov_obs)
         self.sim.set_parameters(pixel_ratio=0.9)
         # self.sim.set_parameters(camera_start_pose=[ 4.2967, 2.4381, 3.5080, 3.6016, 2.0036, 2.9353, 1.0000])
         self.sim.set_parameters(camera_start_pose=[ 0.0, -10, 15.0, 0.0, 0.0, 0.0, 1.0000])
@@ -130,12 +132,12 @@ class DroneShow():
                 
                 #Check if this is ok
                 self.ball_drone_i = self.drones[i].list_of_objects[-1]
-                collided = self.ball_drone_i.compute_dist(self.pc)[2]< 3*self.param_radius
+                collided = self.ball_drone_i.compute_dist(self.pc)[2]< self.param_radius
                 
                 j = 0
                 while (not collided) and (j<i) :
                     ball_drone_j = self.drones[j].list_of_objects[-1]
-                    collided = self.ball_drone_i.compute_dist(ball_drone_j)[2] < 3*self.param_radius
+                    collided = self.ball_drone_i.compute_dist(ball_drone_j)[2] < self.param_radius
                     j+=1
                 cont = collided
         
@@ -246,193 +248,193 @@ class DroneShow():
         
         ########### End of Circular around XY plane while rotating around global Z #################
 
-        ########### Linear in -X while rotating around global X #################
-        print("PHASE 2: Linear in -X while rotating around global X")
-        initial_pos = self.master_path[-1]
-        initial_master_path_index = len(self.master_path)
-        end_pos = initial_pos + np.matrix([-2*radius, 0, 0]).T
-        parameteric_path = np.linspace(0, 1, num_points_per_stage)
+        # ########### Linear in -X while rotating around global X #################
+        # print("PHASE 2: Linear in -X while rotating around global X")
+        # initial_pos = self.master_path[-1]
+        # initial_master_path_index = len(self.master_path)
+        # end_pos = initial_pos + np.matrix([-2*radius, 0, 0]).T
+        # parameteric_path = np.linspace(0, 1, num_points_per_stage)
         
-        for t in parameteric_path:
-            pos = initial_pos + (end_pos - initial_pos) * t
-            self.master_path.append(pos)
+        # for t in parameteric_path:
+        #     pos = initial_pos + (end_pos - initial_pos) * t
+        #     self.master_path.append(pos)
 
-        for i in range(initial_master_path_index, initial_master_path_index + num_points_per_stage):
-            pos = self.master_path[i]
-            # Rotate around X and use x-axis as normal
-            normal = [-1,0,0]
-            i_aux = i - initial_master_path_index
-            phase = i_aux * np.pi / num_points_per_stage
-            # print("phase = {}".format(phase))
+        # for i in range(initial_master_path_index, initial_master_path_index + num_points_per_stage):
+        #     pos = self.master_path[i]
+        #     # Rotate around X and use x-axis as normal
+        #     normal = [-1,0,0]
+        #     i_aux = i - initial_master_path_index
+        #     phase = i_aux * np.pi / num_points_per_stage
+        #     # print("phase = {}".format(phase))
 
-            relative_positions = (
-                self.formation.get_relative_positions(self.param_n_robots, normal, phase)
-            ) # list of (3x1) matrices, of size n_robots (so n_robots x 3 x 1)
-            for drone_idx in range(self.param_n_robots):
-                rel_pos = relative_positions[drone_idx] # 3 x 1
-                next_wp = pos + rel_pos # 3 x 1
-                # print("next_wp = {} for drone_idx = {} and i = {}".format(next_wp, drone_idx, i))
-                self.path_points[drone_idx].append(next_wp)
+        #     relative_positions = (
+        #         self.formation.get_relative_positions(self.param_n_robots, normal, phase)
+        #     ) # list of (3x1) matrices, of size n_robots (so n_robots x 3 x 1)
+        #     for drone_idx in range(self.param_n_robots):
+        #         rel_pos = relative_positions[drone_idx] # 3 x 1
+        #         next_wp = pos + rel_pos # 3 x 1
+        #         # print("next_wp = {} for drone_idx = {} and i = {}".format(next_wp, drone_idx, i))
+        #         self.path_points[drone_idx].append(next_wp)
         
-        ########### End of Linear in -X while rotating around global X #################
+        # ########### End of Linear in -X while rotating around global X #################
 
-        ########### Linear in +X (halfway) while rotating around global X #################
-        print("PHASE 3: Linear in +X (halfway) while rotating around global X")
-        initial_pos = self.master_path[-1]
-        initial_master_path_index = len(self.master_path)
-        end_pos = initial_pos + np.matrix([+1*radius, 0, 0]).T
-        parameteric_path = np.linspace(0, 1, num_points_per_stage)
-        prev_phase = phase
+        # ########### Linear in +X (halfway) while rotating around global X #################
+        # print("PHASE 3: Linear in +X (halfway) while rotating around global X")
+        # initial_pos = self.master_path[-1]
+        # initial_master_path_index = len(self.master_path)
+        # end_pos = initial_pos + np.matrix([+1*radius, 0, 0]).T
+        # parameteric_path = np.linspace(0, 1, num_points_per_stage)
+        # prev_phase = phase
         
-        for t in parameteric_path:
-            pos = initial_pos + (end_pos - initial_pos) * t
-            self.master_path.append(pos)
+        # for t in parameteric_path:
+        #     pos = initial_pos + (end_pos - initial_pos) * t
+        #     self.master_path.append(pos)
 
-        for i in range(initial_master_path_index, initial_master_path_index + num_points_per_stage):
-            pos = self.master_path[i]
-            # Rotate around X and use x-axis as normal
-            # normal = XXXX # use the same normal as before
-            i_aux = i - initial_master_path_index
-            phase = -i_aux * np.pi / num_points_per_stage + prev_phase # start using previous phase
-            # print("phase = {}".format(phase))
+        # for i in range(initial_master_path_index, initial_master_path_index + num_points_per_stage):
+        #     pos = self.master_path[i]
+        #     # Rotate around X and use x-axis as normal
+        #     # normal = XXXX # use the same normal as before
+        #     i_aux = i - initial_master_path_index
+        #     phase = -i_aux * np.pi / num_points_per_stage + prev_phase # start using previous phase
+        #     # print("phase = {}".format(phase))
 
-            relative_positions = (
-                self.formation.get_relative_positions(self.param_n_robots, normal, phase)
-            ) # list of (3x1) matrices, of size n_robots (so n_robots x 3 x 1)
-            for drone_idx in range(self.param_n_robots):
-                rel_pos = relative_positions[drone_idx] # 3 x 1
-                next_wp = pos + rel_pos # 3 x 1
-                # print("next_wp = {} for drone_idx = {} and i = {}".format(next_wp, drone_idx, i))
-                self.path_points[drone_idx].append(next_wp)
+        #     relative_positions = (
+        #         self.formation.get_relative_positions(self.param_n_robots, normal, phase)
+        #     ) # list of (3x1) matrices, of size n_robots (so n_robots x 3 x 1)
+        #     for drone_idx in range(self.param_n_robots):
+        #         rel_pos = relative_positions[drone_idx] # 3 x 1
+        #         next_wp = pos + rel_pos # 3 x 1
+        #         # print("next_wp = {} for drone_idx = {} and i = {}".format(next_wp, drone_idx, i))
+        #         self.path_points[drone_idx].append(next_wp)
         
-        ########### End of Linear in +X (halfway) while rotating around global X #################
+        # ########### End of Linear in +X (halfway) while rotating around global X #################
 
-        ########### Rotate around +Z so normal faces +Y axis #################
-        print("PHASE 4: Rotate around +Z so normal faces +Y axis")
-        initial_pos = self.master_path[-1]
-        initial_master_path_index = len(self.master_path)
-        end_pos = initial_pos # same, we're just going to rotate
-        parameteric_path = np.linspace(0, 1, num_points_per_stage)
-        prev_phase = phase
+        # ########### Rotate around +Z so normal faces +Y axis #################
+        # print("PHASE 4: Rotate around +Z so normal faces +Y axis")
+        # initial_pos = self.master_path[-1]
+        # initial_master_path_index = len(self.master_path)
+        # end_pos = initial_pos # same, we're just going to rotate
+        # parameteric_path = np.linspace(0, 1, num_points_per_stage)
+        # prev_phase = phase
         
-        for t in parameteric_path:
-            pos = initial_pos + (end_pos - initial_pos) * t
-            self.master_path.append(pos)
+        # for t in parameteric_path:
+        #     pos = initial_pos + (end_pos - initial_pos) * t
+        #     self.master_path.append(pos)
 
-        for i in range(initial_master_path_index, initial_master_path_index + num_points_per_stage):
-            pos = self.master_path[i]
-            i_aux = i - initial_master_path_index
-            # Rotate around X and use x-axis as normal
-            normal = np.array(ub.Utils.rotz(i_aux * (-np.pi/2) / num_points_per_stage)[0:3,0]).reshape(3,)
-            # Get the opposite of the normal
-            normal = -normal
-            normal = normal.tolist()
-            # phase = i * (np.pi/2) / num_points_per_stage
-            # print("phase = {}".format(phase))
-            phase = prev_phase
+        # for i in range(initial_master_path_index, initial_master_path_index + num_points_per_stage):
+        #     pos = self.master_path[i]
+        #     i_aux = i - initial_master_path_index
+        #     # Rotate around X and use x-axis as normal
+        #     normal = np.array(ub.Utils.rotz(i_aux * (-np.pi/2) / num_points_per_stage)[0:3,0]).reshape(3,)
+        #     # Get the opposite of the normal
+        #     normal = -normal
+        #     normal = normal.tolist()
+        #     # phase = i * (np.pi/2) / num_points_per_stage
+        #     # print("phase = {}".format(phase))
+        #     phase = prev_phase
 
-            relative_positions = (
-                self.formation.get_relative_positions(self.param_n_robots, normal, phase)
-            ) # list of (3x1) matrices, of size n_robots (so n_robots x 3 x 1)
-            for drone_idx in range(self.param_n_robots):
-                rel_pos = relative_positions[drone_idx] # 3 x 1
-                next_wp = pos + rel_pos # 3 x 1
-                # print("next_wp = {} for drone_idx = {} and i = {}".format(next_wp, drone_idx, i))
-                self.path_points[drone_idx].append(next_wp)
+        #     relative_positions = (
+        #         self.formation.get_relative_positions(self.param_n_robots, normal, phase)
+        #     ) # list of (3x1) matrices, of size n_robots (so n_robots x 3 x 1)
+        #     for drone_idx in range(self.param_n_robots):
+        #         rel_pos = relative_positions[drone_idx] # 3 x 1
+        #         next_wp = pos + rel_pos # 3 x 1
+        #         # print("next_wp = {} for drone_idx = {} and i = {}".format(next_wp, drone_idx, i))
+        #         self.path_points[drone_idx].append(next_wp)
         
-        ########### End of Rotate around +Z so normal faces +Y axis #################
+        # ########### End of Rotate around +Z so normal faces +Y axis #################
 
-        ########### Linear in +Y (halfway) while rotating around global Y #################
-        print("PHASE 5: Linear in +Y (halfway) while rotating around global Y")
-        initial_pos = self.master_path[-1]
-        initial_master_path_index = len(self.master_path)
-        end_pos = initial_pos + np.matrix([0, +1*radius, 0]).T
-        parameteric_path = np.linspace(0, 1, num_points_per_stage)
+        # ########### Linear in +Y (halfway) while rotating around global Y #################
+        # print("PHASE 5: Linear in +Y (halfway) while rotating around global Y")
+        # initial_pos = self.master_path[-1]
+        # initial_master_path_index = len(self.master_path)
+        # end_pos = initial_pos + np.matrix([0, +1*radius, 0]).T
+        # parameteric_path = np.linspace(0, 1, num_points_per_stage)
         
-        for t in parameteric_path:
-            pos = initial_pos + (end_pos - initial_pos) * t
-            self.master_path.append(pos)
+        # for t in parameteric_path:
+        #     pos = initial_pos + (end_pos - initial_pos) * t
+        #     self.master_path.append(pos)
 
-        for i in range(initial_master_path_index, initial_master_path_index + num_points_per_stage):
-            pos = self.master_path[i]
-            i_aux = i - initial_master_path_index
-            # Rotate around X and use x-axis as normal
-            normal = [0,1,0]
-            phase = i_aux * np.pi / num_points_per_stage
-            # print("phase = {}".format(phase))
+        # for i in range(initial_master_path_index, initial_master_path_index + num_points_per_stage):
+        #     pos = self.master_path[i]
+        #     i_aux = i - initial_master_path_index
+        #     # Rotate around X and use x-axis as normal
+        #     normal = [0,1,0]
+        #     phase = i_aux * np.pi / num_points_per_stage
+        #     # print("phase = {}".format(phase))
 
-            relative_positions = (
-                self.formation.get_relative_positions(self.param_n_robots, normal, phase)
-            ) # list of (3x1) matrices, of size n_robots (so n_robots x 3 x 1)
-            for drone_idx in range(self.param_n_robots):
-                rel_pos = relative_positions[drone_idx] # 3 x 1
-                next_wp = pos + rel_pos # 3 x 1
-                # print("next_wp = {} for drone_idx = {} and i = {}".format(next_wp, drone_idx, i))
-                self.path_points[drone_idx].append(next_wp)
+        #     relative_positions = (
+        #         self.formation.get_relative_positions(self.param_n_robots, normal, phase)
+        #     ) # list of (3x1) matrices, of size n_robots (so n_robots x 3 x 1)
+        #     for drone_idx in range(self.param_n_robots):
+        #         rel_pos = relative_positions[drone_idx] # 3 x 1
+        #         next_wp = pos + rel_pos # 3 x 1
+        #         # print("next_wp = {} for drone_idx = {} and i = {}".format(next_wp, drone_idx, i))
+        #         self.path_points[drone_idx].append(next_wp)
         
-        ########### End of Linear in +Y (halfway) while rotating around global Y #################
+        # ########### End of Linear in +Y (halfway) while rotating around global Y #################
 
-        ########### Linear in -Y while rotating around global Y #################
-        print("PHASE 6: Linear in -Y while rotating around global Y")
-        initial_pos = self.master_path[-1]
-        initial_master_path_index = len(self.master_path)
-        end_pos = initial_pos + np.matrix([0, -2*radius, 0]).T
-        parameteric_path = np.linspace(0, 1, num_points_per_stage)
-        prev_phase = phase
+        # ########### Linear in -Y while rotating around global Y #################
+        # print("PHASE 6: Linear in -Y while rotating around global Y")
+        # initial_pos = self.master_path[-1]
+        # initial_master_path_index = len(self.master_path)
+        # end_pos = initial_pos + np.matrix([0, -2*radius, 0]).T
+        # parameteric_path = np.linspace(0, 1, num_points_per_stage)
+        # prev_phase = phase
         
-        for t in parameteric_path:
-            pos = initial_pos + (end_pos - initial_pos) * t
-            self.master_path.append(pos)
+        # for t in parameteric_path:
+        #     pos = initial_pos + (end_pos - initial_pos) * t
+        #     self.master_path.append(pos)
 
-        for i in range(initial_master_path_index, initial_master_path_index + num_points_per_stage):
-            pos = self.master_path[i]
-            i_aux = i - initial_master_path_index
-            # Rotate around X and use x-axis as normal
-            normal = [0,1,0]
-            phase = -i_aux * np.pi / num_points_per_stage + prev_phase
-            # print("phase = {}".format(phase))
+        # for i in range(initial_master_path_index, initial_master_path_index + num_points_per_stage):
+        #     pos = self.master_path[i]
+        #     i_aux = i - initial_master_path_index
+        #     # Rotate around X and use x-axis as normal
+        #     normal = [0,1,0]
+        #     phase = -i_aux * np.pi / num_points_per_stage + prev_phase
+        #     # print("phase = {}".format(phase))
 
-            relative_positions = (
-                    self.formation.get_relative_positions(self.param_n_robots, normal, phase)
-            ) # list of (3x1) matrices, of size n_robots (so n_robots x 3 x 1)
-            for drone_idx in range(self.param_n_robots):
-                rel_pos = relative_positions[drone_idx] # 3 x 1
-                next_wp = pos + rel_pos # 3 x 1
-                # print("next_wp = {} for drone_idx = {} and i = {}".format(next_wp, drone_idx, i))
-                self.path_points[drone_idx].append(next_wp)
+        #     relative_positions = (
+        #             self.formation.get_relative_positions(self.param_n_robots, normal, phase)
+        #     ) # list of (3x1) matrices, of size n_robots (so n_robots x 3 x 1)
+        #     for drone_idx in range(self.param_n_robots):
+        #         rel_pos = relative_positions[drone_idx] # 3 x 1
+        #         next_wp = pos + rel_pos # 3 x 1
+        #         # print("next_wp = {} for drone_idx = {} and i = {}".format(next_wp, drone_idx, i))
+        #         self.path_points[drone_idx].append(next_wp)
         
-        ########### End of Linear in -Y while rotating around global Y #################
+        # ########### End of Linear in -Y while rotating around global Y #################
 
-        ########### Linear in Y while rotating around global X #################
-        print("PHASE 7: Linear in Y while rotating around global -X")
-        initial_pos = self.master_path[-1]
-        initial_master_path_index = len(self.master_path)
-        end_pos = initial_pos + np.matrix([0, 2*radius, 0]).T
-        parameteric_path = np.linspace(0, 1, num_points_per_stage)
-        prev_phase = phase
+        # ########### Linear in Y while rotating around global X #################
+        # print("PHASE 7: Linear in Y while rotating around global -X")
+        # initial_pos = self.master_path[-1]
+        # initial_master_path_index = len(self.master_path)
+        # end_pos = initial_pos + np.matrix([0, 2*radius, 0]).T
+        # parameteric_path = np.linspace(0, 1, num_points_per_stage)
+        # prev_phase = phase
         
-        for t in parameteric_path:
-            pos = initial_pos + (end_pos - initial_pos) * t
-            self.master_path.append(pos)
+        # for t in parameteric_path:
+        #     pos = initial_pos + (end_pos - initial_pos) * t
+        #     self.master_path.append(pos)
 
-        for i in range(initial_master_path_index, initial_master_path_index + num_points_per_stage):
-            pos = self.master_path[i]
-            i_aux = i - initial_master_path_index
-            # Rotate around X and use x-axis as normal
-            normal = np.array((ub.Utils.rotz(i_aux * (2*np.pi) / num_points_per_stage))[0:3,1]).reshape(3,).tolist()
-            phase = -i_aux * np.pi / num_points_per_stage + prev_phase
-            # print("phase = {}".format(phase))
+        # for i in range(initial_master_path_index, initial_master_path_index + num_points_per_stage):
+        #     pos = self.master_path[i]
+        #     i_aux = i - initial_master_path_index
+        #     # Rotate around X and use x-axis as normal
+        #     normal = np.array((ub.Utils.rotz(i_aux * (2*np.pi) / num_points_per_stage))[0:3,1]).reshape(3,).tolist()
+        #     phase = -i_aux * np.pi / num_points_per_stage + prev_phase
+        #     # print("phase = {}".format(phase))
 
-            relative_positions = (
-                    self.formation.get_relative_positions(self.param_n_robots, normal, phase)
-            ) # list of (3x1) matrices, of size n_robots (so n_robots x 3 x 1)
-            for drone_idx in range(self.param_n_robots):
-                rel_pos = relative_positions[drone_idx] # 3 x 1
-                next_wp = pos + rel_pos # 3 x 1
-                # print("next_wp = {} for drone_idx = {} and i = {}".format(next_wp, drone_idx, i))
-                self.path_points[drone_idx].append(next_wp)
+        #     relative_positions = (
+        #             self.formation.get_relative_positions(self.param_n_robots, normal, phase)
+        #     ) # list of (3x1) matrices, of size n_robots (so n_robots x 3 x 1)
+        #     for drone_idx in range(self.param_n_robots):
+        #         rel_pos = relative_positions[drone_idx] # 3 x 1
+        #         next_wp = pos + rel_pos # 3 x 1
+        #         # print("next_wp = {} for drone_idx = {} and i = {}".format(next_wp, drone_idx, i))
+        #         self.path_points[drone_idx].append(next_wp)
         
-        ########### End of Linear in Y while rotating around global Y #################
+        # ########### End of Linear in Y while rotating around global Y #################
 
 
         self.master_path_pc = ub.PointCloud(points=self.master_path,size=0.3,color=self.pc_color)
@@ -455,11 +457,11 @@ class DroneShow():
         cs = 0.75 # cube size
         cp = 2.5 # cube position offset
         cube_color = '#9379F2' # purple
-        self.all_obstacles.append(ub.Box(htm=ub.Utils.trn([0,0,cs/2]),widht=cs, height=cs, depth=cs, opacity=obs_opacity,color=cube_color)) # cube1
-        self.all_obstacles.append(ub.Box(htm=ub.Utils.trn([cp,cp,cs/2]),widht=cs, height=cs, depth=cs, opacity=obs_opacity,color=cube_color)) # cube2
-        self.all_obstacles.append(ub.Box(htm=ub.Utils.trn([cp,-cp,cs/2]),widht=cs, height=cs, depth=cs, opacity=obs_opacity,color=cube_color)) # cube3
-        self.all_obstacles.append(ub.Box(htm=ub.Utils.trn([-cp,cp,cs/2]),widht=cs, height=cs, depth=cs, opacity=obs_opacity,color=cube_color)) # cube4
-        self.all_obstacles.append(ub.Box(htm=ub.Utils.trn([-cp,-cp,cs/2]),widht=cs, height=cs, depth=cs, opacity=obs_opacity,color=cube_color)) # cube5
+        self.all_obstacles.append(ub.Box(htm=ub.Utils.trn([0,0,cs/2]),width=cs, height=cs, depth=cs, opacity=obs_opacity,color=cube_color)) # cube1
+        self.all_obstacles.append(ub.Box(htm=ub.Utils.trn([cp,cp,cs/2]),width=cs, height=cs, depth=cs, opacity=obs_opacity,color=cube_color)) # cube2
+        self.all_obstacles.append(ub.Box(htm=ub.Utils.trn([cp,-cp,cs/2]),width=cs, height=cs, depth=cs, opacity=obs_opacity,color=cube_color)) # cube3
+        self.all_obstacles.append(ub.Box(htm=ub.Utils.trn([-cp,cp,cs/2]),width=cs, height=cs, depth=cs, opacity=obs_opacity,color=cube_color)) # cube4
+        self.all_obstacles.append(ub.Box(htm=ub.Utils.trn([-cp,-cp,cs/2]),width=cs, height=cs, depth=cs, opacity=obs_opacity,color=cube_color)) # cube5
         
         # Walls
         wall_thickness = 0.05
@@ -486,6 +488,10 @@ class DroneShow():
         self.all_obstacles.append(ub.Box(htm=ub.Utils.rotz(np.pi/2)*ub.Utils.trn([0.0,self.stage_size/2,wall_height]),width=2*self.stage_size,depth=wallz_depth,height=wall_thickness,opacity=obs_opacity,color=wallz_color)) # wallz4
         self.all_obstacles.append(ub.Box(htm=ub.Utils.rotz(np.pi/2)*ub.Utils.trn([0.0,self.stage_size,wall_height]),width=2*self.stage_size,depth=wallz_depth,height=wall_thickness,opacity=obs_opacity,color=wallz_color)) # wallz5
 
+        self.mov_obs = ub.Ball(color="red", radius=self.mov_obs_radius, opacity=0.9)
+        self.mov_obs_pos = np.array([0.0, 0.0, 5.0])
+        self.mov_obs_vel = np.array([1.0, 0.0, 0.0])
+        self.mov_obs_htm = ub.Utils.trn(self.mov_obs_pos)
 
         # self.all_obstacles = [obs1, obs2, obs3, obs4, obs5, obs6, wallxp, wallxn, wallyp, wallyn]
 
@@ -512,7 +518,7 @@ class DroneShow():
         #Create the drones
         for i in range(self.param_n_robots):
             drone_body = ub.RigidObject(list_model_3d=[self.drone_model],htm=ub.Utils.trn([0,0,0])*ub.Utils.rotx(np.pi/2))
-            drone_ball = ub.Ball(color=self.drone_colors[i], radius=self.drone_sphere_radius, opacity=self.drone_sphere_opacity)
+            drone_ball = ub.Ball(color=self.drone_colors[i], radius=self.param_radius, opacity=self.drone_sphere_opacity)
             new_drone = ub.Group(list_of_objects=[drone_body, drone_ball])
             self.drones.append(new_drone)
 
@@ -543,6 +549,8 @@ class DroneShow():
         # for i in range(self.param_n_robots):
         #     self.all_tg_box[i].add_ani_frame(0,htm=ub.Utils.trn(self.current_tg[i]))
 
+        self.mov_obs.add_ani_frame(0, htm=self.mov_obs_htm)
+
         cont = True 
 
         self.min_dist_agents = 1e6
@@ -564,7 +572,7 @@ class DroneShow():
             pc_idx = int(self.init_index[0])
             ##int(t/self.param_t_max*len(self.master_path))
             
-            self.ddotq, self.min_dist_agents_now, self.min_dist_obs_now = self.control.control_fun(self.q, self.dotq, self.current_tg, self.pc)
+            self.ddotq, self.min_dist_agents_now, self.min_dist_obs_now = self.control.control_fun(self.q, self.dotq, self.current_tg, self.pc, self.mov_obs_pos, self.mov_obs_vel, self.mov_obs_radius)
             
             self.min_dist_agents = min(self.min_dist_agents_now, self.min_dist_agents)
             self.min_dist_obs = min(self.min_dist_obs_now, self.min_dist_obs)
@@ -676,7 +684,13 @@ class DroneShow():
             self.hist_dist_agent.append(self.min_dist_agents_now)
             self.hist_dist_obs.append(self.min_dist_obs_now)
 
-            
+            # Add ani frame for moving obstacle
+            self.mov_obs_htm *= ub.Utils.trn(self.mov_obs_vel*self.dt)
+            if abs(self.mov_obs_htm[0,3]) >= self.stage_size:
+                self.mov_obs_vel *= -1 # invert
+            self.mov_obs.add_ani_frame(time = i*self.dt, htm =self.mov_obs_htm)
+
+            # Add ani frame for drones and PC
             for j in range(self.param_n_robots):
                 self.drones[j].add_ani_frame(time=i*self.dt, htm=ub.Utils.trn(self.q[3*j:3*(j+1),:]), color=self.drone_colors[j])
                 #self.master_path_pc.add_ani_frame(time=i*self.dt, initial_ind=max(0, pc_idx-int(self.param_max_pc_points_per_frame/2)), final_ind=min(len(self.master_path), pc_idx+int(self.param_max_pc_points_per_frame/2)))

@@ -89,7 +89,7 @@ class DroneControl():
 
     ############################
             
-    def control_fun(self, _q, _dotq, _all_tg, _pc):
+    def control_fun(self, _q, _dotq, _all_tg, _pc, _mov_obs_pos=None, _mov_obs_vel=None, _mov_obs_radius=0.5):
         
         n = self.param_n_robots
         
@@ -183,6 +183,45 @@ class DroneControl():
             A =   np.vstack((A, jac_dist))
             b =   np.vstack((b, -2*self.param_eta*(_dotq[3*i+2,-1])-(self.param_eta*self.param_eta)*(_q[3*i+2,-1]-self.param_radius) )) 
         
+        # Add constrainsts to moving obstacle
+        if _mov_obs_pos is not None and _mov_obs_vel is not None:
+            # for drone_idx in range(n):
+            #     i = 3*drone_idx
+            #     print(f"i = ")
+            #     print(f"_q.shape = {_q.shape}")
+            #     print(f"_q[i:i+3] = {_q[i:i+3]}")
+            #     print(f"_q[i:i+3].shape = {_q[i:i+3].shape}")
+            #     print(f"_mov_obs_pos = {_mov_obs_pos}")
+            #     print(f"_mov_obs_pos.shape = {_mov_obs_pos.shape}")
+            #     print(f"_mov_obs_vel = {_mov_obs_vel}")
+            #     print(f"_mov_obs_vel.shape = {_mov_obs_vel.shape}")
+            #     curr_q = _q[i:i+3]
+            #     print(f"curr_q = {curr_q}")
+            #     print(f"curr_q.shape = {curr_q.shape}")
+            #     _mov_obs_pos = np.matrix(_mov_obs_pos).T
+            #     B_mov_fun = np.linalg.norm(curr_q - _mov_obs_pos) - self.param_radius - self.param_delta
+            #     print(f"B_mov_fun = {B_mov_fun}")
+            #     print(f"B_mov_fun.shape = {B_mov_fun.shape}")
+            #     grad_B_mov_fun = (curr_q - _mov_obs_pos).T/np.linalg.norm(curr_q - _mov_obs_pos)
+            #     print(f"grad_B_mov_fun = {grad_B_mov_fun}")
+            #     print(f"grad_B_mov_fun.shape = {grad_B_mov_fun.shape}")
+            # Repeat the _mov_obs_pos as a (3*n,1) matrix by stacking n times vertically
+            _mov_obs_pos = np.matrix(_mov_obs_pos).T
+            _mov_obs_pos = np.vstack([_mov_obs_pos for _ in range(n)]) # make this 3*n x 1
+            B_mov_fun = np.linalg.norm(_q - _mov_obs_pos) - _mov_obs_radius - self.param_delta
+            # print(f"B_mov_fun = {B_mov_fun}")
+            # print(f"B_mov_fun.shape = {B_mov_fun.shape}")
+            grad_B_mov_fun = (_q - _mov_obs_pos).T/np.linalg.norm(_q - _mov_obs_pos)
+            # print(f"grad_B_mov_fun = {grad_B_mov_fun}")
+            # print(f"grad_B_mov_fun.shape = {grad_B_mov_fun.shape}")
+            # vstack after all drones are iterated over
+            A = np.vstack( (A, grad_B_mov_fun) )
+            b = np.vstack( (b, -self.param_eta * B_mov_fun) )
+            # print(f"A = {A}")
+            # print(f"A.shape = {A.shape}")
+            # print(f"b = {b}")
+            # print(f"b.shape = {b.shape}")
+
         try:                 
             return ub.Utils.solve_qp(H,f,A,b), min_dist_agents, min_dist_obs
         except:
